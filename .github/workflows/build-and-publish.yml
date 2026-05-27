@@ -1,0 +1,165 @@
+name: Build & Publish Fat Mod
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - dev
+      - '*-patched'
+      - '*-patched-dev'
+    tags: ['*']
+  pull_request:
+    branches: [main, master, develop, dev]
+  workflow_dispatch:
+    inputs:
+      entcore_version:
+        description: 'Version entcore (ex: 6.14.9-patched). Laissez vide pour utiliser la version du pom.xml.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  frontend:
+    name: Build Frontend (Gulp/Node 10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with Node 10 via Docker
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            --user root \
+            opendigitaleducation/node:10-alpine \
+            sh -c "npm install --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
+
+      - name: Upload frontend assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-assets
+          path: src/main/resources/
+          retention-days: 1
+
+  backend:
+    name: Build & Publish Fat Mod
+    runs-on: ubuntu-latest
+    needs: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: temurin
+          cache: maven
+
+      - name: Download frontend assets
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-assets
+          path: src/main/resources/
+
+      - name: Configure Maven pour GitHub Packages
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml << EOF
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>$GITHUB_ACTOR</username>
+                <password>$GITHUB_TOKEN</password>
+              </server>
+            </servers>
+            <profiles>
+              <profile>
+                <id>github-packages</id>
+                <repositories>
+                  <repository>
+                    <id>github</id>
+                    <name>GitHub open-ent Packages</name>
+                    <url>https://maven.pkg.github.com/open-ent/entcore-v2</url>
+                    <releases><enabled>true</enabled></releases>
+                    <snapshots><enabled>true</enabled></snapshots>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+            <activeProfiles>
+              <activeProfile>github-packages</activeProfile>
+            </activeProfiles>
+          </settings>
+          EOF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
+      - name: Build fat JAR
+        run: |
+          ENTCORE_OPT=""
+          if [ -n "$ENTCORE_VERSION" ]; then ENTCORE_OPT="-DentCoreVersion=$ENTCORE_VERSION"; fi
+          mvn clean package -DskipTests -B $ENTCORE_OPT
+        env:
+          ENTCORE_VERSION: ${{ github.event.inputs.entcore_version }}
+
+      - name: Run tests
+        if: github.event_name == 'pull_request'
+        run: mvn test -B
+
+      - name: Configure Maven for GitHub Packages
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml << 'EOF'
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                        https://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${env.GITHUB_ACTOR}</username>
+                <password>${env.GITHUB_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Publish fat JAR to GitHub Packages
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
+          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          FAT_JAR=$(ls target/*-fat.jar 2>/dev/null | head -1)
+          echo "Publishing ${GROUP_ID}:${ARTIFACT_ID}:${VERSION}:fat"
+          if [ -z "${FAT_JAR}" ]; then
+            echo "::error::Fat JAR not found in target/"
+            ls -la target/*.jar 2>/dev/null || echo "No JARs found in target/"
+            exit 1
+          fi
+          mvn deploy:deploy-file \
+            -Dfile="${FAT_JAR}" \
+            -DgroupId="${GROUP_ID}" \
+            -DartifactId="${ARTIFACT_ID}" \
+            -Dversion="${VERSION}" \
+            -Dclassifier=fat \
+            -Dpackaging=jar \
+            -DrepositoryId=github \
+            -Durl="https://maven.pkg.github.com/${{ github.repository }}" \
+            -B
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/*-fat.jar
+          generate_release_notes: true
