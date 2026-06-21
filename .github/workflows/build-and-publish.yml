@@ -104,7 +104,7 @@ jobs:
         run: |
           ENTCORE_OPT=""
           if [ -n "$ENTCORE_VERSION" ]; then ENTCORE_OPT="-DentCoreVersion=$ENTCORE_VERSION"; fi
-          mvn clean package -DskipTests -B $ENTCORE_OPT
+          mvn clean package -DskipTests -B -DbuildNumber=${GITHUB_SHA::8} -DscmBranch=${GITHUB_REF_NAME} $ENTCORE_OPT
         env:
           ENTCORE_VERSION: ${{ github.event.inputs.entcore_version }}
 
@@ -132,20 +132,22 @@ jobs:
           EOF
 
       - name: Publish fat JAR to GitHub Packages
+        continue-on-error: true
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)
-          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           FAT_JAR=$(ls target/*-fat.jar 2>/dev/null | head -1)
-          echo "Publishing ${GROUP_ID}:${ARTIFACT_ID}:${VERSION}:fat"
           if [ -z "${FAT_JAR}" ]; then
             echo "::error::Fat JAR not found in target/"
             ls -la target/*.jar 2>/dev/null || echo "No JARs found in target/"
             exit 1
           fi
+          # coords depuis le nom du fat-mod (grp~art~ver-fat.jar)
+          BASE=$(basename "${FAT_JAR}" -fat.jar)
+          GROUP_ID=${BASE%%~*}; REST=${BASE#*~}; ARTIFACT_ID=${REST%%~*}; VERSION=${REST#*~}
+          echo "Publishing ${GROUP_ID}:${ARTIFACT_ID}:${VERSION}:fat -> GitHub Packages"
           mvn deploy:deploy-file \
             -Dfile="${FAT_JAR}" \
             -DgroupId="${GROUP_ID}" \
@@ -155,6 +157,37 @@ jobs:
             -Dpackaging=jar \
             -DrepositoryId=github \
             -Durl="https://maven.pkg.github.com/${{ github.repository }}" \
+            -B
+
+      - name: Publish fat JAR to rct-nexus
+        continue-on-error: true
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          NEXUS_USER: ${{ secrets.NEXUS_USER }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: |
+          cat > /tmp/nx-settings.xml <<EOF
+          <settings><servers><server><id>pt-releases</id><username>${NEXUS_USER}</username><password>${NEXUS_PASSWORD}</password></server></servers></settings>
+          EOF
+          FAT_JAR=$(ls target/*-fat.jar 2>/dev/null | head -1)
+          if [ -z "${FAT_JAR}" ]; then echo "::error::Fat JAR not found"; exit 1; fi
+          FAT_ABS=$(realpath "${FAT_JAR}")
+          # coords depuis le nom du fat-mod (grp~art~ver-fat.jar) : pas besoin de resoudre le projet
+          BASE=$(basename "${FAT_JAR}" -fat.jar)
+          GROUP_ID=${BASE%%~*}; REST=${BASE#*~}; ARTIFACT_ID=${REST%%~*}; VERSION=${REST#*~}
+          echo "Deploying ${GROUP_ID}:${ARTIFACT_ID}:${VERSION}:fat -> rct-nexus (maven-releases)"
+          # IMPORTANT : lancer depuis /tmp (dossier SANS pom) sinon mvn lit le pom du projet et resout le parent
+          # classifier=fat : c'est l'artefact que le launcher tire (grp~art~ver-fat.jar)
+          cd /tmp
+          mvn deploy:deploy-file -s /tmp/nx-settings.xml \
+            -Dfile="${FAT_ABS}" \
+            -DgroupId="${GROUP_ID}" \
+            -DartifactId="${ARTIFACT_ID}" \
+            -Dversion="${VERSION}" \
+            -Dclassifier=fat \
+            -Dpackaging=jar \
+            -DrepositoryId=pt-releases \
+            -Durl="https://rct-nexus.tech.fr/repository/maven-releases/" \
             -B
 
       - name: Create GitHub Release
