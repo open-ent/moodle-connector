@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.edifice</groupId>
+        <groupId>fr.openent</groupId>
         <artifactId>app-parent</artifactId>
         <version>1.2.0</version>
     </parent>
@@ -30,7 +30,7 @@
 
     <properties>
         <entCoreVersion>6.14.9</entCoreVersion>
-        <vertxCronTimerVersion>3.0.0</vertxCronTimerVersion>
+        <vertxCronTimerVersion>3.0-SNAPSHOT</vertxCronTimerVersion>
     </properties>
 
     <dependencies>
