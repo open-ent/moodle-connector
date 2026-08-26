@@ -29,7 +29,7 @@
     </repositories>
 
     <properties>
-        <entCoreVersion>6.14.9</entCoreVersion>
+        <entCoreVersion>6.14.9-patched</entCoreVersion>
         <vertxCronTimerVersion>3.0-SNAPSHOT</vertxCronTimerVersion>
     </properties>
 
