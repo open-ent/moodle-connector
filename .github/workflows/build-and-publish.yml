@@ -40,7 +40,7 @@ jobs:
             sh -c "npm install --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
 
       - name: Upload frontend assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-assets
           path: src/main/resources/
