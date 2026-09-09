@@ -506,7 +506,13 @@ public class DefaultSynchService {
                 .onFailure(event -> {
                     //Typically an unresolved Address, a timeout about connection or response
                     log.error(event.getMessage(), event);
-                    responseIsSent.getAndSet(true);//renderError(request);
+                    responseIsSent.getAndSet(true);
+                    // L'appel d'erreur était explicitement commenté (`//renderError(request)`) et
+                    // la promise n'était jamais complétée ni échouée sur ce chemin : tout
+                    // CompositeFuture.all() attendant ce Future restait bloqué indéfiniment dès
+                    // qu'une requête Moodle échouait (timeout, DNS...). Complète comme le chemin
+                    // "statusCode != 200" ci-dessus, pour ne pas bloquer la synchro globale.
+                    promise.complete();
                 });
         return promise.future();
     }
