@@ -58,9 +58,6 @@ public class DefaultMoodleService implements MoodleService {
                 log.error("Fail to call get share course right webservice" + response.statusMessage());
                 response.bodyHandler(event -> {
                     log.error("Returning body after GET CALL : " + moodleUrl + ", Returning body : " + event.toString("UTF-8"));
-                    // Sans ce handle, l'appelant restait bloqué indéfiniment sur toute réponse
-                    // non-200 du webservice Moodle.
-                    handler.handle(new Either.Left<>("Fail to call get share course right webservice: " + event.toString("UTF-8")));
                     if (!responseIsSent.getAndSet(true)) {
                         httpClient.close();
                     }
@@ -76,9 +73,6 @@ public class DefaultMoodleService implements MoodleService {
                 .onSuccess(getAuditeurHandler)
                 .onFailure(event -> {
                     log.error(event.getMessage(), event);
-                    // Sans ce handle, l'appelant restait bloqué indéfiniment sur tout échec de
-                    // la requête HTTP (timeout, connexion refusée, etc.).
-                    handler.handle(new Either.Left<>("Fail to call get share course right webservice: " + event.getMessage()));
                     if (!responseIsSent.getAndSet(true)) {
                         httpClient.close();
                     }

@@ -124,9 +124,6 @@ public class HttpClientHelper extends ControllerHelper {
                 .onFailure(event -> {
                     //Typically an unresolved Address, a timeout about connection or response
                     log.error(event.getMessage(), event);
-                    // Sans ce handle, l'appelant restait bloqué indéfiniment sur tout échec de
-                    // la requête HTTP vers le webservice Moodle (timeout, connexion refusée, etc.).
-                    handler.handle(new Either.Left<>("Fail to call Moodle webservice: " + event.getMessage()));
                     if (!responseIsSent.getAndSet(true)) {
                         httpClient.close();
                     }
