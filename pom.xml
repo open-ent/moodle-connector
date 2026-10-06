@@ -64,12 +64,6 @@
             <version>${vertxCronTimerVersion}</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>org.entcore</groupId>
-            <artifactId>tests</artifactId>
-            <version>${entCoreVersion}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -121,4 +115,18 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <!-- org.entcore:tests ne sert qu'aux scénarios Gatling et n'est pas publié en -patched -->
+            <id>gatling-it</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.entcore</groupId>
+                    <artifactId>tests</artifactId>
+                    <version>${entCoreVersion}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
