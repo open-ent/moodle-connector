@@ -526,7 +526,7 @@ public class DefaultSynchService {
         JsonObject params = new JsonObject();
         params.put("idUsers", new fr.wseduc.webutils.collections.JsonArray(Arrays.asList(idUsers)));
 
-        String query = " MATCH (u:User) WHERE u.id IN {idUsers} " +
+        String query = " MATCH (u:User) WHERE u.id IN $idUsers " +
                 RETURNING;
         neo4j.execute(query,params, Neo4jResult.validResultHandler(handler));
 

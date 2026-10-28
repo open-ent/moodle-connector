@@ -16,7 +16,7 @@ public class DefaultModuleNeoRequestService implements ModuleNeoRequestService {
                 .put("usersIds", usersIds);
 
         String queryUsersNeo4j =
-                "MATCH (u:User) WHERE  u.id IN {usersIds} " +
+                "MATCH (u:User) WHERE  u.id IN $usersIds " +
                         "RETURN u.id AS id, u.id as username, u.email AS email, u.firstName AS firstname, u.lastName AS lastname";
 
         Neo4j.getInstance().execute(queryUsersNeo4j, params, Neo4jResult.validResultHandler(handler));
@@ -29,7 +29,7 @@ public class DefaultModuleNeoRequestService implements ModuleNeoRequestService {
 
 
         String queryGroupsNeo4j =
-                "MATCH(g:Group)-[:IN]-(ug:User) WHERE g.id  IN {groupsIds} " +
+                "MATCH(g:Group)-[:IN]-(ug:User) WHERE g.id  IN $groupsIds " +
                         "WITH g, collect({id: ug.id, username: ug.id, email: ug.email, firstname: ug.firstName, lastname: ug.lastName}) " +
                         "AS users " +
                         "return \"GR_\"+g.id AS id, g.name AS name, users";
@@ -42,9 +42,9 @@ public class DefaultModuleNeoRequestService implements ModuleNeoRequestService {
         JsonObject params = new JsonObject()
                 .put("bookmarksIds", bookmarksIds);
 
-        String queryNeo4j = "WITH {bookmarksIds} AS shareBookmarkIds " +
+        String queryNeo4j = "WITH $bookmarksIds AS shareBookmarkIds " +
                 "UNWIND shareBookmarkIds AS shareBookmarkId MATCH (u:User)-[:HAS_SB]->(sb:ShareBookmark) " +
-                "UNWIND TAIL(sb[shareBookmarkId]) as vid MATCH (v:Visible {id : vid}) WHERE not(has(v.deleteDate)) " +
+                "UNWIND TAIL(sb[shareBookmarkId]) as vid MATCH (v:Visible {id : vid}) WHERE v.deleteDate IS NULL " +
                 "WITH {group: {id: \"SB\" + shareBookmarkId, name: HEAD(sb[shareBookmarkId]), users: COLLECT(DISTINCT{id: v.id, " +
                 "email: v.email, lastname: v.lastName, firstname: v.firstName, username: v.id})}}as sharedBookMark " +
                 "RETURN COLLECT(sharedBookMark) as bookmarks;";
@@ -57,17 +57,17 @@ public class DefaultModuleNeoRequestService implements ModuleNeoRequestService {
         JsonObject params = new JsonObject()
                 .put("bookmarksIds", bookmarksIds);
 
-        String queryNeo4j = "WITH {bookmarksIds} AS shareBookmarkIds UNWIND shareBookmarkIds AS shareBookmarkId " +
+        String queryNeo4j = "WITH $bookmarksIds AS shareBookmarkIds UNWIND shareBookmarkIds AS shareBookmarkId " +
                 "MATCH (u:User)-[:HAS_SB]->(sb:ShareBookmark) UNWIND TAIL(sb[shareBookmarkId]) as vid " +
-                "MATCH (v:Visible {id : vid})<-[:IN]-(us:User) WHERE not(has(v.deleteDate)) and v:ProfileGroup " +
+                "MATCH (v:Visible {id : vid})<-[:IN]-(us:User) WHERE v.deleteDate IS NULL and v:ProfileGroup " +
                 "WITH {id: shareBookmarkId, name: HEAD(sb[shareBookmarkId]), " +
                 "users: COLLECT(DISTINCT{id: us.id, email: us.email, lastname: us.lastName, firstname: us.firstName, username: us.id})} " +
                 "as sharedBookMark " +
                 "RETURN sharedBookMark " +
                 "UNION " +
-                "WITH {bookmarksIds} AS shareBookmarkIds UNWIND shareBookmarkIds AS shareBookmarkId " +
+                "WITH $bookmarksIds AS shareBookmarkIds UNWIND shareBookmarkIds AS shareBookmarkId " +
                 "MATCH (u:User)-[:HAS_SB]->(sb:ShareBookmark) UNWIND TAIL(sb[shareBookmarkId]) as vid " +
-                "MATCH (v:Visible {id : vid}) WHERE not(has(v.deleteDate)) and v:User " +
+                "MATCH (v:Visible {id : vid}) WHERE v.deleteDate IS NULL and v:User " +
                 "WITH {id: shareBookmarkId, name: HEAD(sb[shareBookmarkId]), " +
                 "users: COLLECT(DISTINCT{id: v.id, email: v.email, lastname: v.lastName, firstname: v.firstName, username: v.id})} " +
                 "as sharedBookMark " +
