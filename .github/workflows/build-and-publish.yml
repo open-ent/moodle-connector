@@ -19,6 +19,14 @@ on:
         required: false
         default: ''
 
+# Un seul build par PR et par commit. Groupe calculé selon l'événement : pour une
+# PR, `github.ref` (refs/pull/N/merge) est stable d'un rebase à l'autre, donc une
+# nouvelle poussée annule le build devenu périmé ; sinon le SHA, pour que deux refs
+# sur le même commit (branche puis tag) ne construisent qu'une fois.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/') }}
+
 permissions:
   contents: write
   packages: write
