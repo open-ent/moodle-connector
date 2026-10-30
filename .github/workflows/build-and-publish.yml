@@ -11,7 +11,7 @@ on:
       - '*-patched-dev'
     tags: ['*']
   pull_request:
-    branches: [main, master, develop, dev]
+    branches: [main, master, develop, dev, '*-patched-dev', '*-patched']
   workflow_dispatch:
     inputs:
       entcore_version:
