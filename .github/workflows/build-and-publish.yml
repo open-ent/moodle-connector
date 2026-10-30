@@ -117,7 +117,9 @@ jobs:
 
       - name: Run tests
         if: github.event_name == 'pull_request'
-        run: mvn test -B
+        # profil `scala` d'app-parent désactivé : maven-scala-plugin 2.15.2 ne lit pas le
+        # bytecode du JDK 21, et aucun module applicatif n'a de source Scala.
+        run: mvn test -B -P '!scala'
 
       - name: Configure Maven for GitHub Packages
         if: startsWith(github.ref, 'refs/tags/')
