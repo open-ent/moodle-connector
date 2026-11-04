@@ -33,19 +33,21 @@ permissions:
 
 jobs:
   frontend:
-    name: Build Frontend (Gulp/Node 10)
+    name: Build Frontend (Gulp/Node 26)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build with Node 10 via Docker
+      # git : entcore-css-lib (ode-csslib) tire entcore-generic-icons depuis un dépôt git, et
+      # node:26-alpine, contrairement à l'ancienne image ODE, n'embarque pas git.
+      - name: Build with Node 26 via Docker
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
             --user root \
-            opendigitaleducation/node:10-alpine \
-            sh -c "npm install --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
+            node:26-alpine \
+            sh -c "apk add --no-cache git >/dev/null && npm install --legacy-peer-deps && node_modules/gulp/bin/gulp.js build"
 
       - name: Upload frontend assets
         uses: actions/upload-artifact@v7
@@ -63,7 +65,7 @@ jobs:
 
       - uses: actions/setup-java@v6
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: temurin
           cache: maven
 
@@ -123,10 +125,20 @@ jobs:
         env:
           ENTCORE_VERSION: ${{ github.event.inputs.entcore_version }}
 
+      # Depuis le JDK 23, javac n'exécute plus les processeurs d'annotations trouvés sur le
+      # classpath : sans `-proc:full` (pom), le jar part sans securedaction/ ni routes/, et
+      # chaque route sécurisée répond 404 — sans aucune erreur de build.
+      - name: Verify annotation metadata
+        run: |
+          FAT_JAR=$(ls target/*-fat.jar | head -1)
+          for d in securedaction routes; do
+            unzip -Z1 "$FAT_JAR" | grep -q "^$d/" || { echo "::error::$d/ absent de $FAT_JAR"; exit 1; }
+          done
+
       - name: Run tests
         if: github.event_name == 'pull_request'
         # profil `scala` d'app-parent désactivé : maven-scala-plugin 2.15.2 ne lit pas le
-        # bytecode du JDK 21, et aucun module applicatif n'a de source Scala.
+        # bytecode des JDK récents, et aucun module applicatif n'a de source Scala.
         run: mvn test -B -P '!scala'
 
       - name: Configure Maven for GitHub Packages

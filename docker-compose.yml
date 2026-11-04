@@ -1,6 +1,6 @@
 services:
   maven:
-    image: maven:3.9-eclipse-temurin-21
+    image: maven:3.9-eclipse-temurin-25
     user: "$DEFAULT_DOCKER_USER"
     working_dir: /usr/src/maven
     volumes:
@@ -10,7 +10,9 @@ services:
       MAVEN_CONFIG: /var/maven/.m2
 
   node:
-    image: "opendigitaleducation/node:22-alpine-pnpm"
+    # image Debian (et non alpine) : yarn installe entcore-generic-icons depuis git, que
+    # node:26-alpine n'a pas (et build.sh tourne sans root, pas d'apk add possible).
+    image: node:26
     working_dir: /home/node/app
     volumes:
       - ./:/home/node/app
