@@ -58,13 +58,13 @@ gulp.task('watch', () => {
         var modName = getModName(content);
         gulp.watch(['./src/main/resources/public/template/**/*.html', '!./src/main/resources/public/template/entcore/*.html'], () => {
             console.log('Copying resources to ' + springboard + 'mods/' + modName);
-            gulp.src('./src/main/resources/**/*', { encoding: false })
+            return gulp.src('./src/main/resources/**/*', { encoding: false })
                 .pipe(gulp.dest(springboard + 'mods/' + modName));
         });
 
         gulp.watch('./src/main/resources/view/**/*.html', () => {
             console.log('Copying resources to ' + springboard + 'mods/' + modName);
-            gulp.src('./src/main/resources/**/*', { encoding: false })
+            return gulp.src('./src/main/resources/**/*', { encoding: false })
                 .pipe(gulp.dest(springboard + 'mods/' + modName));
         });
     });

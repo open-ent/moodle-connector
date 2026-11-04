@@ -56,23 +56,22 @@ clean () {
   docker-compose run --rm maven mvn $MVN_OPT clean
 }
 
-# node:26-alpine n'embarque ni yarn ni corepack : yarn 1 (celui du yarn.lock) via npx.
 buildNode () {
   case `uname -s` in
     MINGW*)
-      docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npx --yes yarn@1.22.22 install --no-bin-links && node_modules/gulp/bin/gulp.js build && npx --yes yarn@1.22.22 run build:sass"
+      docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "yarn install --no-bin-links && node_modules/gulp/bin/gulp.js build && yarn run build:sass"
       ;;
     *)
-      docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npx --yes yarn@1.22.22 install && node_modules/gulp/bin/gulp.js build && npx --yes yarn@1.22.22 run build:sass"
+      docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "yarn install && node_modules/gulp/bin/gulp.js build && yarn run build:sass"
   esac
 }
 
 buildGulp() {
-    docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npx --yes yarn@1.22.22 install --no-bin-links && node_modules/gulp/bin/gulp.js build"
+    docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "yarn install --no-bin-links && node_modules/gulp/bin/gulp.js build"
 }
 
 buildCss() {
-    docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "npx --yes yarn@1.22.22 run build:sass"
+    docker-compose run --rm -u "$USER_UID:$GROUP_GID" node sh -c "yarn run build:sass"
 }
 
 install () {
